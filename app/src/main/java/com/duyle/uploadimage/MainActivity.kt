@@ -28,6 +28,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.rememberAsyncImagePainter
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.ui.Alignment
 import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
@@ -54,13 +57,18 @@ fun PhotoGalleryScreen(photos: List<Uri>) {
     var selectedPhoto by remember { mutableStateOf<Uri?>(null) }
     var photoList by remember { mutableStateOf(photos) }
 
-    // Khởi tạo launcher để chọn ảnh
+    // ✅ Thêm hàm xóa ảnh
+    fun deletePhoto(uri: Uri) {
+        photoList = photoList.filterNot { it == uri }
+        selectedPhoto = null
+    }
+
     val context = LocalContext.current
     val photoPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
         uri?.let {
-            photoList = photoList + it  // Thêm ảnh vào danh sách
+            photoList = photoList + it
         }
     }
 
@@ -68,7 +76,7 @@ fun PhotoGalleryScreen(photos: List<Uri>) {
         snackbarHost = { SnackbarHost(snackbarHostState) },
         floatingActionButton = {
             FloatingActionButton(onClick = {
-                photoPickerLauncher.launch("image/*")  // Mở thư viện ảnh
+                photoPickerLauncher.launch("image/*")
             }) {
                 Text("+", fontSize = 40.sp)
             }
@@ -82,13 +90,13 @@ fun PhotoGalleryScreen(photos: List<Uri>) {
                     photos = photoList,
                     currentPhoto = selectedPhoto!!,
                     setSelectedPhoto = { selectedPhoto = it },
-                    onBack = { selectedPhoto = null }
+                    onBack = { selectedPhoto = null },
+                    onDelete = { deletePhoto(it) }
                 )
             }
         }
     }
 }
-
 
 @Composable
 fun PhotoGrid(photos: List<Uri>, onPhotoClick: (Uri) -> Unit) {
@@ -104,14 +112,16 @@ fun PhotoGrid(photos: List<Uri>, onPhotoClick: (Uri) -> Unit) {
             )
         }
     }
+
 }
 
 @Composable
 fun FullPhotoView(
     photos: List<Uri>,
     currentPhoto: Uri,
-    setSelectedPhoto: (Uri) -> Unit,  // ✅ Add this parameter
-    onBack: () -> Unit
+    setSelectedPhoto: (Uri) -> Unit,
+    onBack: () -> Unit,
+    onDelete: (Uri) -> Unit
 ) {
     val currentIndex = photos.indexOf(currentPhoto)
     val previousPhoto = if (currentIndex > 0) photos[currentIndex - 1] else null
@@ -120,20 +130,37 @@ fun FullPhotoView(
     Column(modifier = Modifier.fillMaxSize()) {
         Spacer(modifier = Modifier.size(150.dp))
 
-        Image(
-            painter = rememberAsyncImagePainter(currentPhoto),
-            contentDescription = null,
-            modifier = Modifier
-                .fillMaxWidth()
-                .pointerInput(Unit) {
-                    detectTapGestures(
-                        onTap = { onBack() },
-                        onLongPress = { /* Handle Long Press */ }
-                    )
-                }
-        )
+        Box(modifier = Modifier.fillMaxWidth()) {
+            Image(
+                painter = rememberAsyncImagePainter(currentPhoto),
+                contentDescription = null,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .pointerInput(Unit) {
+                        detectTapGestures(
+                            onTap = { onBack() }
+                        )
+                    }
+            )
 
-        // Previous and Next buttons
+            // Nút xóa ảnh ở góc trên bên phải
+            IconButton(
+                onClick = { onDelete(currentPhoto) },
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(16.dp)
+                    .size(50.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Delete,
+                    contentDescription = "Delete photo",
+                    tint = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.size(40.dp)
+                )
+            }
+        }
+
+
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -146,9 +173,7 @@ fun FullPhotoView(
             ) {
                 Text("Previous")
             }
-            Button(
-                onClick = { onBack() },
-            ) {
+            Button(onClick = { onBack() }) {
                 Text("Home")
             }
             Button(
@@ -160,7 +185,6 @@ fun FullPhotoView(
         }
     }
 }
-
 
 @Preview(showBackground = true)
 @Composable
